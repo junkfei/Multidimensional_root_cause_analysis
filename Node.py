@@ -3,6 +3,7 @@ import json
 import math
 import numpy as np
 import copy
+import random
 
 
 class Node(object):
@@ -27,9 +28,17 @@ def selection(node, explored_leaf_node, maxLeafNode, choise):
             # 第一次访问新节点，初始化它的孩子节点
             if len(node.children) == 0:
                 init_children(node, choise)
-            # 如果当前节点存在没有访问过的孩子节点，则返回当前节点
+            # 如果当前节点存在没有访问过的孩子节点，则依据概率选择深度优先还是广度优先
+            Q_max = 0
+            is_random = False
             for i in node.children:
+                if i.Q > Q_max:
+                    Q_max = i.Q
                 if i.N == 0:
+                    is_random = True
+
+            if is_random:
+                if random.random() > Q_max:
                     return node, all_selected
 
             # 否则依据UCB公式计算最优的孩子节点，重复这个过程
@@ -69,20 +78,22 @@ def init_children(node, choise):
 
 
 def best_child(node):
-    # 依据UCB公式计算最大Q值的孩子节点
+    # 依据UCB公式计算最优孩子节点
     best_score = -1
     best = None
 
     for sub_node in node.children:
 
-        C = math.sqrt(2.0)
-        left = sub_node.Q
-        right = math.log(node.N) / sub_node.N
-        score = left + C * math.sqrt(right)
+        # 在可选的节点里面选择最优
+        if sub_node.Q > 0:
+            C = math.sqrt(2.0)
+            left = sub_node.Q
+            right = math.log(node.N) / sub_node.N
+            score = left + C * math.sqrt(right)
 
-        if score > best_score:
-            best = sub_node
-            best_score = score
+            if score > best_score:
+                best = sub_node
+                best_score = score
 
     return best
 
@@ -116,8 +127,6 @@ def evalation(selection_node, max_e, forecast, real, v, f):
     new_set.append(max_e)
     # 对新状态计算Q值大小
     new_q = get_scores(new_set, forecast, real, v, f)
-    # if new_q > 1:
-    #     break
     return new_q
 
 
@@ -238,7 +247,6 @@ def MCTS(forecast, real, choise, M, PT):
         # 如果新节点的Q值超过预设阀值，则跳出循环
         if new_q >= PT:
             break
-
     return best_node
 
 
@@ -265,33 +273,35 @@ def get_result(row_name, column_name, forecast, real, M, PT):
     result_name = []
     result_Q = 0
 
-    # 返回综合结果
-    if row_node.Q >= column_node.Q and row_node.Q >= mix_node.Q:
-        for i in row_node.state:
-            result_name.append([row_name[i[0]]])
-            result_Q = row_node.Q
-    elif column_node.Q >= row_node.Q and column_node.Q >= mix_node.Q:
-        for i in column_node.state:
-            result_name.append([column_name[i[0]]])
-            result_Q = column_node.Q
-    elif mix_node.Q > row_node.Q and mix_node.Q > column_node.Q:
-        for i in mix_node.state:
-            result_name.append([row_name[i[0]], column_name[i[1]]])
-            result_Q = mix_node.Q
+    # # 返回综合结果
+    # if row_node.Q >= column_node.Q and row_node.Q >= mix_node.Q:
+    #     for i in row_node.state:
+    #         result_name.append([row_name[i[0]]])
+    #         result_Q = row_node.Q
+    # elif column_node.Q >= row_node.Q and column_node.Q >= mix_node.Q:
+    #     for i in column_node.state:
+    #         result_name.append([column_name[i[0]]])
+    #         result_Q = column_node.Q
+    # elif mix_node.Q > row_node.Q and mix_node.Q > column_node.Q:
+    #     for i in mix_node.state:
+    #         result_name.append([row_name[i[0]], column_name[i[1]]])
+    #         result_Q = mix_node.Q
 
-    # # 返回二维结果
-    # for i in mix_node.state:
-    #     result_name.append([row_name[i[0]], column_name[i[1]]])
-    #     result_Q = mix_node.Q
+    # 返回二维结果
+    print
+    for i in mix_node.state:
+        result_name.append([row_name[i[0]], column_name[i[1]]])
+        result_Q = mix_node.Q
+
 
     return result_name, result_Q
 
 
 if __name__ == '__main__':
     # M 是最大搜索次数
-    M = 10000
+    M = 1000000
     # PT 是Q值的阀值
-    PT = 0.8
+    PT = 0.75
 
     # # 测试数据1
     # row_name = ['Mobile', 'Unicom']
@@ -303,34 +313,35 @@ if __name__ == '__main__':
     #         [7, 15, 20, 42],
     #         [21, 24, 30, 75]]
 
-    # 测试数据2
-    row_name = ['Mobile', 'Unicom']
-    column_name = ['Fujian', 'Jiangsu', 'Zhejiang']
-    forecast = [[20, 15, 10, 45],
-                [10, 25, 20, 55],
-                [30, 40, 30, 100]]
-    real = [[5, 15, 10, 30],
-            [10, 13, 20, 43],
-            [15, 28, 30, 73]]
+    # # 测试数据2
+    # row_name = ['Mobile', 'Unicom']
+    # column_name = ['Fujian', 'Jiangsu', 'Zhejiang']
+    # forecast = [[20, 15, 10, 45],
+    #             [10, 25, 20, 55],
+    #             [30, 40, 30, 100]]
+    # real = [[5, 15, 10, 30],
+    #         [10, 13, 20, 43],
+    #         [15, 28, 30, 73]]
 
-    # # 测试数据3
-    # row_name = ['联通', '电信', '移动', '长宽']
-    # column_name = ['内蒙古', '山东省', '广东省', '新疆', '江西省', '河北省',
-    #                '浙江省', '海南省', '湖北省', '湖南省', '辽宁省', '黑龙江省']
-    # forecast = [[53, 0, 111, 0, 0, 203, 0, 0, 0, 0, 141, 87, 595],
-    #             [0, 113, 0, 34, 0, 173, 0, 41, 0, 0, 0, 0, 361],
-    #             [0, 236, 213, 0, 74, 94, 221, 0, 55, 49, 51, 0, 993],
-    #             [0, 0, 73, 0, 0, 0, 0, 0, 0, 0, 0, 0, 73],
-    #             [53, 349, 397, 34, 74, 470, 221, 41, 55, 49, 192, 87, 2022]]
-    # real = [[32, 0, 70, 0, 0, 124, 0, 0, 0, 0, 75, 63, 364],
-    #         [0, 61, 0, 9, 0, 78, 0, 15, 0, 0, 0, 0, 163],
-    #         [0, 141, 112, 0, 44, 56, 127, 0, 29, 39, 15, 0, 563],
-    #         [0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41],
-    #         [32, 202, 223, 9, 44, 258, 127, 15, 29, 39, 90, 63, 1131]]
+    # 测试数据3
+    row_name = ['联通', '电信', '移动', '长宽']
+    column_name = ['内蒙古', '山东省', '广东省', '新疆', '江西省', '河北省',
+                   '浙江省', '海南省', '湖北省', '湖南省', '辽宁省', '黑龙江省']
+    forecast = [[53, 0, 111, 0, 0, 203, 0, 0, 0, 0, 141, 87, 595],
+                [0, 113, 0, 34, 0, 173, 0, 41, 0, 0, 0, 0, 361],
+                [0, 236, 213, 0, 74, 94, 221, 0, 55, 49, 51, 0, 993],
+                [0, 0, 73, 0, 0, 0, 0, 0, 0, 0, 0, 0, 73],
+                [53, 349, 397, 34, 74, 470, 221, 41, 55, 49, 192, 87, 2022]]
+    real = [[32, 0, 70, 0, 0, 124, 0, 0, 0, 0, 75, 63, 364],
+            [0, 61, 0, 9, 0, 78, 0, 15, 0, 0, 0, 0, 163],
+            [0, 141, 112, 0, 44, 56, 127, 0, 29, 39, 15, 0, 563],
+            [0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41],
+            [32, 202, 223, 9, 44, 258, 127, 15, 29, 39, 90, 63, 1131]]
 
     name, Q = get_result(row_name, column_name, forecast, real, M, PT)
 
     print ("根因组合: ")
-    print (json.dumps(name, encoding="UTF-8", ensure_ascii=False))
+    print (json.dumps(name, encoding="UTF-8", ensure_ascii=False)).encode("utf8")
     print ("组合得分: ")
     print (Q)
+
