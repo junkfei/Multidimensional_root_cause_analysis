@@ -288,7 +288,7 @@ def get_result(row_name, column_name, forecast, real, M, PT):
     #         result_Q = mix_node.Q
 
     # 返回二维结果
-    print
+    # print
     for i in mix_node.state:
         result_name.append([row_name[i[0]], column_name[i[1]]])
         result_Q = mix_node.Q
@@ -341,7 +341,7 @@ if __name__ == '__main__':
     name, Q = get_result(row_name, column_name, forecast, real, M, PT)
 
     print ("根因组合: ")
-    print (json.dumps(name, encoding="UTF-8", ensure_ascii=False)).encode("utf8")
+    print (json.dumps(name, ensure_ascii=False))
     print ("组合得分: ")
     print (Q)
 
