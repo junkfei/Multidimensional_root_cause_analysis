@@ -17,46 +17,31 @@ class Node(object):
         self.N = 0
 
 
-def selection(node, explored_leaf_node, maxLeafNode, choise):
+def selection(node, choise):
     all_selected = False
 
-    # 当叶子节点没有被搜索完时
-    while len(explored_leaf_node) < maxLeafNode:
+    # 当前节点不含所有元素
+    while len(node.state) < len(choise):
+        # 第一次访问新节点，初始化它的孩子节点
+        if len(node.children) == 0:
+            init_children(node, choise)
+        # 如果当前节点存在没有访问过的孩子节点，则依据概率选择深度优先还是广度优先
+        Q_max = 0
+        is_random = False
+        for i in node.children:
+            if i.Q > Q_max:
+                Q_max = i.Q
+            if i.N == 0:
+                is_random = True
 
-        # 当前节点不是叶子节点时
-        while len(node.state) < len(choise):
-            # 第一次访问新节点，初始化它的孩子节点
-            if len(node.children) == 0:
-                init_children(node, choise)
-            # 如果当前节点存在没有访问过的孩子节点，则依据概率选择深度优先还是广度优先
-            Q_max = 0
-            is_random = False
-            for i in node.children:
-                if i.Q > Q_max:
-                    Q_max = i.Q
-                if i.N == 0:
-                    is_random = True
+        if is_random:
+            if random.random() > Q_max:
+                return node, all_selected
 
-            if is_random:
-                if random.random() > Q_max:
-                    return node, all_selected
+        # 否则依据UCB公式计算最优的孩子节点，重复这个过程
+        node = best_child(node)
 
-            # 否则依据UCB公式计算最优的孩子节点，重复这个过程
-            node = best_child(node)
-
-        # 当访问到新的叶子节点时，添加到叶子节点列表
-        if node.state not in explored_leaf_node:
-            explored_leaf_node.append(node.state)
-        # 同时对到达叶子节点这条路径上的所有节点：N+1
-        while True:
-            if node.parents is not None:
-                node.N += 1
-                node = node.parents
-            else:
-                node.N += 1
-                break
-
-    # 叶子节点被搜索完时，不再搜索并返回
+    # 当前节点包含所有元素，不再搜索并返回
     all_selected = True
     return node, all_selected
 
@@ -197,13 +182,6 @@ def get_best_node(node):
 
 
 def MCTS(forecast, real, choise, M, PT):
-    # 累乘，计算叶子节点的最大数量。当搜索过所有叶子节点时，停止搜索
-    maxLeafNode = 1
-    for i in range(1, len(choise) + 1):
-        maxLeafNode = maxLeafNode * i
-    # 初始化探索过的叶子节点列表
-    explored_leaf_node = []
-
     # 计算Q值公式中需要的真实向量v、预测向量f
     v = []
     f = []
@@ -227,7 +205,7 @@ def MCTS(forecast, real, choise, M, PT):
     for i in range(M):
 
         # 1、选择，如果所有节点搜索完毕，则跳出循环
-        selection_node, all_selected = selection(node, explored_leaf_node, maxLeafNode, choise)
+        selection_node, all_selected = selection(node, choise)
         if all_selected:
             break
 
@@ -293,25 +271,24 @@ def get_result(row_name, column_name, forecast, real, M, PT):
         result_name.append([row_name[i[0]], column_name[i[1]]])
         result_Q = mix_node.Q
 
-
     return result_name, result_Q
 
 
 if __name__ == '__main__':
     # M 是最大搜索次数
-    M = 1000000
+    M = 1000
     # PT 是Q值的阀值
     PT = 0.75
 
     # # 测试数据1
-    # row_name = ['Mobile', 'Unicom']
-    # column_name = ['Beijing', 'Shanghai', 'Guangzhou']
-    # forecast = [[20, 15, 10, 45],
-    #             [10, 25, 20, 55],
-    #             [30, 40, 30, 100]]
-    # real = [[14, 9, 10, 33],
-    #         [7, 15, 20, 42],
-    #         [21, 24, 30, 75]]
+    row_name = ['Mobile', 'Unicom']
+    column_name = ['Beijing', 'Shanghai', 'Guangzhou']
+    forecast = [[20, 15, 10, 45],
+                [10, 25, 20, 55],
+                [30, 40, 30, 100]]
+    real = [[14, 9, 10, 33],
+            [7, 15, 20, 42],
+            [21, 24, 30, 75]]
 
     # # 测试数据2
     # row_name = ['Mobile', 'Unicom']
@@ -324,19 +301,19 @@ if __name__ == '__main__':
     #         [15, 28, 30, 73]]
 
     # 测试数据3
-    row_name = ['联通', '电信', '移动', '长宽']
-    column_name = ['内蒙古', '山东省', '广东省', '新疆', '江西省', '河北省',
-                   '浙江省', '海南省', '湖北省', '湖南省', '辽宁省', '黑龙江省']
-    forecast = [[53, 0, 111, 0, 0, 203, 0, 0, 0, 0, 141, 87, 595],
-                [0, 113, 0, 34, 0, 173, 0, 41, 0, 0, 0, 0, 361],
-                [0, 236, 213, 0, 74, 94, 221, 0, 55, 49, 51, 0, 993],
-                [0, 0, 73, 0, 0, 0, 0, 0, 0, 0, 0, 0, 73],
-                [53, 349, 397, 34, 74, 470, 221, 41, 55, 49, 192, 87, 2022]]
-    real = [[32, 0, 70, 0, 0, 124, 0, 0, 0, 0, 75, 63, 364],
-            [0, 61, 0, 9, 0, 78, 0, 15, 0, 0, 0, 0, 163],
-            [0, 141, 112, 0, 44, 56, 127, 0, 29, 39, 15, 0, 563],
-            [0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41],
-            [32, 202, 223, 9, 44, 258, 127, 15, 29, 39, 90, 63, 1131]]
+    # row_name = ['联通', '电信', '移动', '长宽']
+    # column_name = ['内蒙古', '山东省', '广东省', '新疆', '江西省', '河北省',
+    #                '浙江省', '海南省', '湖北省', '湖南省', '辽宁省', '黑龙江省']
+    # forecast = [[53, 0, 111, 0, 0, 203, 0, 0, 0, 0, 141, 87, 595],
+    #             [0, 113, 0, 34, 0, 173, 0, 41, 0, 0, 0, 0, 361],
+    #             [0, 236, 213, 0, 74, 94, 221, 0, 55, 49, 51, 0, 993],
+    #             [0, 0, 73, 0, 0, 0, 0, 0, 0, 0, 0, 0, 73],
+    #             [53, 349, 397, 34, 74, 470, 221, 41, 55, 49, 192, 87, 2022]]
+    # real = [[32, 0, 70, 0, 0, 124, 0, 0, 0, 0, 75, 63, 364],
+    #         [0, 61, 0, 9, 0, 78, 0, 15, 0, 0, 0, 0, 163],
+    #         [0, 141, 112, 0, 44, 56, 127, 0, 29, 39, 15, 0, 563],
+    #         [0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41],
+    #         [32, 202, 223, 9, 44, 258, 127, 15, 29, 39, 90, 63, 1131]]
 
     name, Q = get_result(row_name, column_name, forecast, real, M, PT)
 
@@ -344,4 +321,3 @@ if __name__ == '__main__':
     print (json.dumps(name, ensure_ascii=False))
     print ("组合得分: ")
     print (Q)
-
